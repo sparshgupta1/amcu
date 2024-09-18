@@ -1,0 +1,27 @@
+This location holds the Infinera specific changes to the Cypress code pulled from github.
+
+## Changing source code
+
+Files in this location are pulled from Cypress github so any updates here that are Infinera specific
+must be specially tracked so that the respective changes are not lost during a component upgrade.
+Infinera changes will be tracked through patch files stored in mtb_shared/infn-patch/ and should have
+naming consistent with `<mtbDirectoryPatchIsFor>-<jiranumber>-<uniqueId>.patch`. Patch files can be
+created using git diff and redirecting the output to a file.
+
+- `git diff > mtb_shared/infn-patch/my-patch-file-name.patch` - This should always be done with respect
+to amcu\ directory level. You may add arguments like `git diff --staged > mtb_shared/infn-patch/my-patch-file-name.patch` if you already added the code but have
+not committed or `git diff COMMITHASH~ COMMITHASH > mtb_shared/infn-patch/my-patch-file-name.patch` if you already have committed the mtb_shared changes. The
+"uniqueId" field can just be an incrementing number starting at 0 to avoid same file names.
+- If you have changes other than mtb_shared changes included in your new patch file, manually remove
+those from the contents. The new patch only needs to track the changes made to file in mtb_shared
+directories only.
+- Commit your new patch file
+
+## Updating component version
+
+- Download new version of component using ModusToolbox Library Manager
+- Copy component full directory contents to respective mtb_shared\ of workspace
+- Update cypress_manifest.txt
+- Remove .git files and git subdirectories
+- cd to amcu directory and apply patches from mtb-shared/infn-patch/ using `git apply`
+- commit changes

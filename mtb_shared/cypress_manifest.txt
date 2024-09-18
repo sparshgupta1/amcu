@@ -1,0 +1,108 @@
+                    Cypress Library Source Manifest
+
+All Cypress component libraries are copied to amcu/mtb_shared/ directory on refresh-libs and are shared between
+M0 and M4 cores, except where exceptions listed below in Version(s) field.
+
+ - Information pulled from the source copy cloned into mtb_shared/ by ModusTools IDE when including new library
+               - Commit Hashes: cat .git/HEAD
+               - Link: cat .git/config
+               - Versions: subdirectory name and mtb_shared/<libraryName>/release-<version>/
+===== PROCESS FOR LIBRARY UPDATES:
+- run "make modlibs" in each of the app_cmXX directories and manually select the package versions
+- run "update" button on the gui
+- check in the new .mtb files in /deps/ folder
+- update this file information
+- update <component>.version file
+- update .gitignore for new version
+
+---------------------------------------------------------------------------------------------------------------
+#### Library: abstraction-rtos ####
+Commit Hash(es):    72bc31c8a99d59f8aeff7ca4ca96ba792df73d12
+Link:               https://github.com/cypresssemiconductorco/abstraction-rtos
+Version(s):         v1.7.1
+License:            Apache v2.0, Jan 2004
+
+#### Library: capsense ####
+Commit Hash(es):    01dac81aead7278cd26f3670abcbdb71dfdd2fd2
+Link:               https://github.com/cypresssemiconductorco/capsense
+Version(s):         v3.0.0
+License:            Cypress EULA only
+
+#### Library: clib-support ####
+Commit Hash(es):    d3e0bcaadcb80ae9762221009e671e94e0ffc903
+Link:               https://github.com/cypresssemiconductorco/clib-support
+Version(s):         v1.3.0
+License:            Apache v2.0, Jan 2004
+
+#### Library: core-lib ####
+Commit Hash(es):    1c1cb8af402ac6c63966d73adbb62cc6ff0ecea5
+Link:               https://github.com/cypresssemiconductorco/core-lib
+Version(s):         v1.3.1
+License:            Apache v2.0 Jan 2004
+
+#### Library: core-make ####
+Commit Hash(es):    251ade90cd56005369ced67cf0583171783b1cd1
+Link:               https://github.com/cypresssemiconductorco/core-make
+Version(s):         v1.9.1
+License:            Apache v2.0, Jan 2004
+
+#### Library: dfu (NOT USED) ####
+Commit Hash(es):    3026a09da51798bd3020a749c979c7507f3da47d
+Link:               https://github.com/cypresssemiconductorco/dfu
+Version(s):         v4.20.0
+License:
+
+#### Library: emeeprom ####
+Commit Hash(es):    179b53170d9d996d562838255ea293eaa8d61de9
+Link:               https://github.com/Infineon/emeeprom
+Version(s):         v2.10.0.267
+License:            Cypress EULA only
+
+#### Library: freertos ####
+Commit Hash(es):    eec60193e7f5d4e239bc9c8e6c0c6e88eb3ecdb4
+Link:               https://github.com/cypresssemiconductorco/freertos
+Version(s):         v10.4.302
+License:            MIT open source
+
+#### Library: mtb-hal-cat1 ####
+Commit Hash(es):    d672eadbe0b56baf76fec6365ba262c3ff8d0a49
+Link:               https://github.com/cypresssemiconductorco/mtb-hal-cat1
+Version(s):         v2.2.0
+License:            Apache v2.0, Jan 2004
+
+#### Library: mtb-pdl-cat1 ####
+Commit Hash(es):    26c73d7617c6d84ca72355818ee81cc9bdb01a68
+Link:               https://github.com/cypresssemiconductorco/mtb-pdl-cat1
+Version(s):         v2.4.1
+License:            Apache v2.0, Jan 2004
+
+#### Library: psoc6cm0p ####
+Commit Hash(es):    1ac2f0699e069b1af10e88190d6969b169408c6b
+Link:               https://github.com/cypresssemiconductorco/psoc6cm0p
+Version(s):         v2.3.0
+License:            Permissive Binary License v1.0, Sept 2015
+
+#### Library: recipe-make-cat1a ####
+Commit Hash(es):    656d8c5b4fbd1e20190315ffb6a64ae151f627c9
+Link:               https://github.com/cypresssemiconductorco/recipe-make-cat1a
+Version(s):         v1.9.0
+License:            Apache v2.0, Jan 2004
+
+#### Library: retarget-io ####
+Commit Hash(es):    a61cd7c5f4b2808c949248f05287c09e6578abfc
+Link:               https://github.com/cypresssemiconductorco/retarget-io
+Version(s):         v1.3.0
+License:            Apache v2.0, Jan 2004
+
+#### Library: usbdev (NOT USED) ####
+Commit Hash(es):    7bdb68e5a12552d21f7ed441f857728c48cdf94c
+Link:               https://github.com/cypresssemiconductorco/usbdev
+Version(s):         v2.10.0
+License:
+
+#### Library: TARGET_CY8CKIT-06252-43012 ####
+Commit Hash(es):    7f3840aab53ff773c5d95eaedb5aaaae9dd2af45
+Link:               https://github.com/cypresssemiconductorco/TARGET_CY8CKIT-062S2-43012
+Version(s):         v3.1.0 (app_cm0p/libs/)
+License:            Apache v2.0, Jan 2004
+

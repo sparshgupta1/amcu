@@ -1,0 +1,57 @@
+diff --git a/mtb_shared/mtb-pdl-cat1/release-v2.4.0/cmsis/include/core_cm4.h b/mtb_shared/mtb-pdl-cat1/release-v2.4.0/cmsis/include/core_cm4.h
+index 4e0e88669..7f0a77641 100644
+--- a/mtb_shared/mtb-pdl-cat1/release-v2.4.0/cmsis/include/core_cm4.h
++++ b/mtb_shared/mtb-pdl-cat1/release-v2.4.0/cmsis/include/core_cm4.h
+@@ -1,26 +1,21 @@
+-/**************************************************************************//**
+- * @file     core_cm4.h
+- * @brief    CMSIS Cortex-M4 Core Peripheral Access Layer Header File
+- * @version  V5.1.1
+- * @date     27. March 2020
+- ******************************************************************************/
+-/*
+- * Copyright (c) 2009-2020 Arm Limited. All rights reserved.
+- *
+- * SPDX-License-Identifier: Apache-2.0
++/*        ___
++ *   ___ / _ \
++ *  / _ ' (_) |       __  _
++ * | (_) ,___/       / _|(_)
++ *  \___/  _  _ __  | |_  _  _ __    ___  _ __  __ _
++ *        | || '_ \ |  _|| || '_ \  / _ \| '__|/ _` |
++ *        | || | | || |  | || | | ||  __/| |  | (_| |
++ *        |_||_| |_||_|  |_||_| |_| \___||_|   \__,_|
+  *
+- * Licensed under the Apache License, Version 2.0 (the License); you may
+- * not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
++ * @file core_cm4.h
++ * @brief CMSIS Cortex-M4 Core Peripheral Access Layer Header File
++ * @author Dhaval Raval
+  *
+- * www.apache.org/licenses/LICENSE-2.0
++ * @copyright 2022 Infinera. All rights reserved.
++ * Infinera Proprietary and Confidential.
++ * @version  V5.1.1
+  *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
++ ***************************************************************************/
+ 
+ #if   defined ( __ICCARM__ )
+   #pragma system_include         /* treat file as system include file for MISRA check */
+@@ -1550,7 +1545,9 @@ typedef struct
+ #define SCS_BASE            (0xE000E000UL)                            /*!< System Control Space Base Address */
+ #define ITM_BASE            (0xE0000000UL)                            /*!< ITM Base Address */
+ #define DWT_BASE            (0xE0001000UL)                            /*!< DWT Base Address */
+-#define TPI_BASE            (0xE0040000UL)                            /*!< TPI Base Address */
++
++/* PSOC 62 have TPI Lite version which has starting address of 0xE008E000UL */
++#define TPI_BASE            (0xE008E000UL)                            /*!< TPI Base Address */
+ #define CoreDebug_BASE      (0xE000EDF0UL)                            /*!< Core Debug Base Address */
+ #define SysTick_BASE        (SCS_BASE +  0x0010UL)                    /*!< SysTick Base Address */
+ #define NVIC_BASE           (SCS_BASE +  0x0100UL)                    /*!< NVIC Base Address */
