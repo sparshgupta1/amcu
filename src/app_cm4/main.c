@@ -113,18 +113,14 @@ int fw_upg_get_running_image(void)
         return 0xB;
     }
 }
-int var;
-void foo(void){
-    var = 1;
-}
+
 int main(void)
 {
-    foo();
     // TEST TO SEE IF CM4 STARTED
-    volatile uint32_t *pc    = (uint32_t *)(0x080FF518);
-    volatile uint32_t *tst  =  (uint32_t *)(0x080FF51C);
-    volatile uint32_t *tst1  = (uint32_t *)(0x080FF520);
-    *tst = 0xA0DEDEAD;
+    volatile uint32_t *pc    = (uint32_t *)(0x080FF508);
+    volatile uint32_t *tst  =  (uint32_t *)(0x080FF50C);
+    volatile uint32_t *tst1  = (uint32_t *)(0x080FF510);
+    *tst = 0xC0DEDEAD;
     *pc = (uint32_t)get_pc();
     *tst1 = (uint32_t)fw_upg_get_running_image();
     for (;;)

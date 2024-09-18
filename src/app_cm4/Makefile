@@ -107,7 +107,7 @@ VFP_SELECT=
 #
 # NOTE: Includes and defines should use the INCLUDES and DEFINES variable
 # above.
-CFLAGS=-Werror -Wall -mfp16-format=ieee -fpic -mno-pic-data-is-text-relative -mpic-register=r9 -msingle-pic-base
+CFLAGS=-Werror -Wall -mfp16-format=ieee
 
 # Additional / custom C++ compiler flags.
 #

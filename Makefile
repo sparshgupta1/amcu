@@ -47,11 +47,11 @@ JTAGIDFORHEX=$(shell printf '"1s/^/%s%s/"' ":0200000490501A\n" ":060000000000E45
 # File manipulation constants
 #
 #Start of App-A, should match include/amcu_mem_defs.h
-AMCUIMAGEA_OFF = 0x10005000
+AMCUIMAGEA_OFF = 0x10000000
 # IMAGE Size = Application + VERNUM+SHA256SUM+DIGSIG+CALCMN+CALBBRD
 AMCUIMAGE_SIZE = 1M
 #Start of App-B, should match include/amcu_mem_defs.h
-AMCUIMAGEB_OFF = 0x10105000
+AMCUIMAGEB_OFF = 0x10100000
 # APPLICATION+FOOTER+CALCMN
 AMCUAPP_CALCMN_SIZE = 16640
 # AMCUAPP_END = AMCUAPP.BIN - CALCMSIZE
@@ -78,7 +78,7 @@ DIRS=src
 CLEANDIRS=$(DIRS)
 CLEAN_ALL_DIRS=$(addprefix cleanall-,$(CLEANDIRS) include)
 
-.PHONY: help all git-hooks $(DIRS) TAGS $(CLEAN_ALL_DIRS) database db dbs cleandatabase cleandatabases cleandb dumpdb dumpdatabases dumpdbs dumpdatabase format gentoc2 amcuapp-build amcuapp
+.PHONY: help all $(DIRS) TAGS $(CLEAN_ALL_DIRS) database db dbs cleandatabase cleandatabases cleandb dumpdb dumpdatabases dumpdbs dumpdatabase format gentoc2 amcuapp-build amcuapp
 
 .PHONY: $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(INFNPATCH_DIR)/cy8c6xxa_cm0plusB.ld $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualA.ld $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualB.ld
 
@@ -117,12 +117,10 @@ amcuapp-build: $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(INFNPATCH_DIR)/cy8c6xxa_c
 	$(MAKE) --directory=$(ROOT_DIR)/src; \
 	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm0plus.ld; \
 	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualA.ld $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm4_dual.ld; \
-	$(CP) $(INFNPATCH_DIR)/new.S $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/startup_psoc6_02_cm4.S; \
 	$(MAKE) --directory=$(ROOT_DIR) install; \
 	$(MV) $(INSTALL_BIN_DIR)/amcuapp.hex $(DEPLOY_DIR)/amcuappA.hex; \
-	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm0plus.ld; \
+	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm0plusB.ld $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm0plus.ld; \
 	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualB.ld $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm4_dual.ld; \
-	$(CP) $(INFNPATCH_DIR)/new.S $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/startup_psoc6_02_cm4.S; \
 	$(MAKE) --directory=$(ROOT_DIR) install; \
 	$(MV) $(INSTALL_BIN_DIR)/amcuapp.hex $(DEPLOY_DIR)/amcuappB.hex;
 

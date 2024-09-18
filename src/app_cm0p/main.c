@@ -102,21 +102,21 @@ int fw_upg_get_running_image(void)
 int main(void)
 {
     // TEST TO SEE IF CM0p STARTED
-    volatile uint32_t *tst   = (uint32_t *)(0x080FF514);
-    volatile uint32_t *pc = (uint32_t *)(0x080FF510);
-    *tst = 0xDEADA0DE;
+    volatile uint32_t *tst   = (uint32_t *)(0x080FF504);
+    volatile uint32_t *pc = (uint32_t *)(0x080FF500);
+    *tst = 0xDEADC0DE;
     
     *pc = (uint32_t)get_pc();
-    // uint8_t imageAddress = fw_upg_get_running_image();
+    uint8_t imageAddress = fw_upg_get_running_image();
 
-    // if (imageAddress == 0xA)
-    // {
-    //     Cy_SysEnableCM4(0x10007000);
-    // }else if (imageAddress == 0xB){
-    //     Cy_SysEnableCM4(0x10107000);
-    // }else{
-    //     *tst = 0x1A2B3C4D;
-    // }
+    if (imageAddress == 0xA)
+    {
+        Cy_SysEnableCM4(0x10002000);
+    }else if (imageAddress == 0xB){
+        Cy_SysEnableCM4(0x10102000);
+    }else{
+        *tst = 0x1A2B3C4D;
+    }
     for (;;)
     {
     }
