@@ -145,7 +145,7 @@ __cy_app_verify_length = LENGTH(flash) - __cy_boot_signature_size;
 
 SECTIONS
 {
-.cy_app_header ORIGIN (flash):
+    .cy_app_header ORIGIN (flash):
     {
         KEEP(*(.cy_app_header))
     } > flash
@@ -232,11 +232,6 @@ SECTIONS
         LONG (__data_start__)                               /* To   */
         LONG (__data_end__ - __data_start__)                /* Size */
 
-        /* Copy data section to RAM */
-        LONG (__flash_global_offset_table_begin)                                      /* From */
-        LONG (__ram_global_offset_table_begin)                               /* To   */
-        LONG (__ram_global_offset_table_end - __ram_global_offset_table_begin)                /* Size */
-
         __copy_table_end__ = .;
     } > flash
 
@@ -295,21 +290,10 @@ SECTIONS
 
         KEEP(*(.cy_ramfunc*))
         . = ALIGN(4);
-         __data_end__ = .;
+
+        __data_end__ = .;
+
     } > ram AT>flash
-
-    .got :
-    {
-        . = ALIGN(4);
-        *(.got)
-        *(.got.plt)
-    } >ram AT> flash
-
-    __flash_global_offset_table_begin = LOADADDR(.got) ;
-    __flash_global_offset_table_end = __flash_global_offset_table_begin + SIZEOF(.got) ;
-    __ram_global_offset_table_begin = ADDR(.got) ;
-    __ram_global_offset_table_end = __ram_global_offset_table_begin + SIZEOF(.got) ;
-
 
     /* Flash area */
 
@@ -374,13 +358,13 @@ SECTIONS
     /* Check if data + heap + stack exceeds RAM limit */
     ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
 
-    FLASH_CALCMN_START_ADDRESS = FLASH_A_BASE_ADDR + 0x4000;
+
     /* Used for the digital signature of the secure application and the Bootloader SDK application.
     * The size of the section depends on the required data size. */
-    .cy_app_signature (FLASH_CALCMN_START_ADDRESS - __cy_boot_signature_size) :
-    {
-        KEEP(*(.cy_app_signature))
-    } > flash
+    /*.cy_app_signature (0x10003700 - __cy_boot_signature_size) :
+    *{
+    *    KEEP(*(.cy_app_signature))
+    *} > flash*/
 
 
     /* Supervisory Flash: User data */

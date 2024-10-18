@@ -63,8 +63,6 @@
 #include "cybsp.h"
 // #include "cyw20829a0kml.h"
 
-#include <stdlib.h>
-
 #define CM0_VTABLE_REG_ADDR (0x40201120)
 
 #define BOOT_CM0P_SIZE (0x4000)
@@ -73,50 +71,101 @@
 #define CPUSS_CM0_CTL_REG_ADDR (0x40201000)
 #define CPUSS_CM0_CTL_REG_VAL (0x05fa0000)
 
-#define M4_START_ADDRESS (0x10002000)
+#define M4_START_ADDRESS (0x10000000 + 0x2000)
 
 #define BREG0 (0x40271000)
 
 // static uint32_t randomData1[0x10] CY_SECTION(".cy_ram_tst1");
 
+typedef void (*func_ptr_t)(void);
+void vDeInitAndJumpToMainFirmware(func_ptr_t vPlatformSpecificDeinit,
+                                  uint32_t u32FirmwareOffset,
+                                  uint32_t u32FirmwareAddress)
+{
+    uint32_t u32FirmwareStackPointerAddress = 0;
+    uint32_t u32FirmwareResetHandlerAddress = 0;
+    volatile uint32_t *d                    = (uint32_t *)(0x080FF54C);
+    // volatile uint32_t *tst3                 = (uint32_t *)(0x080FF534);
+    // volatile uint32_t *tst1                 = (uint32_t *)(0x080FF500);
+    uint32_t *pu32FwFlashPointer  = (uint32_t *)u32FirmwareAddress;
+    uint32_t u32RegistersChecksum = 0;
+
+    // Read 4 first bytes from FW, the stack pointer
+    u32FirmwareStackPointerAddress = *pu32FwFlashPointer;
+    //*tst1                          = u32FirmwareStackPointerAddress;
+    // Read 4 next bytes from FW, reset handler address
+    pu32FwFlashPointer++;
+    u32FirmwareResetHandlerAddress = *pu32FwFlashPointer;
+    // Patch it with offset
+    u32FirmwareResetHandlerAddress += u32FirmwareOffset;
+    *d = u32FirmwareResetHandlerAddress;
+
+    // Calculate simple checksum of the registers to be passed
+    u32RegistersChecksum = u32FirmwareAddress ^ u32FirmwareOffset;
+    //*tst3                = 0xB1;
+    if (vPlatformSpecificDeinit != NULL)
+    {
+        vPlatformSpecificDeinit();
+    }
+    //*tst3 = 0xB2;
+    // Everything set; time to store addresses bootloader is going to pass to
+    // firmware via registers. After this the firmware knows what should be done
+    // and it does things (system memory remapping, vector table things, global
+    // offset table operations) autonomously.
+    //*tst3 = 0xB3;
+    // Store firmware absolute address to r10 (hoop in case we have limited
+    // Cortex-M0)
+    asm("ldr r6, %0; mov r10, r6" : "=m"(u32FirmwareAddress) : :);
+    //  asm ("ldr r6, %0; mov r10, r6"
+    //        :"=m"(0x10009000)
+    //        :
+    //        :);
+    //*tst3 = 0xB4;
+    // Store firmware offset to r11 (hoop in case we have limited Cortex-M0)
+    asm("ldr r6, %0; mov r11, r6;" : "=m"(u32FirmwareOffset) : :);
+    //*tst3 = 0xB5;
+    // Store registers checksum to r12 (hoop in case we have limited Cortex-M0)
+    asm("ldr r6, %0; mov r12, r6;" : "=m"(u32RegistersChecksum) : :);
+    //*tst3                = 0x1111B6;
+    volatile uint32_t *a = (uint32_t *)(0x080FF540);
+    volatile uint32_t *b = (uint32_t *)(0x080FF544);
+    volatile uint32_t *c = (uint32_t *)(0x080FF548);
+
+    *a = u32FirmwareAddress; // u32FirmwareAddress;
+    *b = u32FirmwareOffset;  // u32FirmwareOffset;
+    *c = u32RegistersChecksum;
+
+    // Actual jump
+    // asm("mov sp, %0; bx %1;" : : "r"(0x10009000), "r"(0x10009004));
+    // uint32_t* sp = (uint32_t *)(0x10009000);
+    // uint32_t resetHandler = *(uint32_t *)(0x10009000+4);
+    __asm volatile("MSR msp, %0" : : "r"(&u32FirmwareStackPointerAddress));
+    ((func_ptr_t)u32FirmwareResetHandlerAddress)();
+    //*tst3 = 0xB7;
+}
+
+static void vL432kc_DeInit(void)
+{
+    __disable_irq();
+    SysTick->CTRL = 0;
+    SysTick->LOAD = 0;
+    SysTick->VAL  = 0;
+}
+
 /* MAIN FUNCTION */
-
-__attribute__((__noinline__)) void *get_pc()
-{
-    return __builtin_return_address(0);
-}
-
-int fw_upg_get_running_image(void)
-{
-    if (((uintptr_t)&fw_upg_get_running_image < 0x10100000) &&
-        ((uintptr_t)&fw_upg_get_running_image > 0x10000000))
-    {
-        return 0xA;
-    }
-    else
-    {
-        return 0xB;
-    }
-}
-
 int main(void)
 {
     // TEST TO SEE IF CM0p STARTED
-    volatile uint32_t *tst   = (uint32_t *)(0x080FF504);
-    volatile uint32_t *pc = (uint32_t *)(0x080FF500);
-    *tst = 0xDEADC0DE;
-    
-    *pc = (uint32_t)get_pc();
-    uint8_t imageAddress = fw_upg_get_running_image();
+    volatile uint32_t *tst = (uint32_t *)(0x080FF514);
+    *tst                   = 0xF0032013;
 
-    if (imageAddress == 0xA)
-    {
-        Cy_SysEnableCM4(0x10002000);
-    }else if (imageAddress == 0xB){
-        Cy_SysEnableCM4(0x10102000);
-    }else{
-        *tst = 0x1A2B3C4D;
-    }
+    Cy_SysEnableCM4(M4_START_ADDRESS);
+
+    // to show that enable cm4 function was passed
+    // randomData1[1] = 0xBEEFC0DE;
+
+    uint32_t u32JumpAddress = 0x10109400;
+    vDeInitAndJumpToMainFirmware(&vL432kc_DeInit, 0x109000, u32JumpAddress);
     for (;;)
     {
     }

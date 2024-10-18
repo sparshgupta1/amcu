@@ -37,7 +37,8 @@ TRUNCATE := truncate
 OPENSSL  := openssl pkeyutl -sign
 SREC_CAT := srec_cat
 SED := sed
-VER_NUMS='0.0.0.0' # GGG.MMM.mmm.PPP
+VER=$(shell cd src; git describe --always --dirty)
+VER_NUMS=$(word 2, $(subst -, ,$(subst _, ,$(VER)))) # GGG.MMM.mmm.PPP
 #Metadata register in hex is 0x9050_0000
 #Silicon ID value at 0x9050_0000[2]=0xE4531202
 #Keep in mind that checksum bytes at the end will change if the values are modified
@@ -53,11 +54,11 @@ AMCUIMAGE_SIZE = 1M
 #Start of App-B, should match include/amcu_mem_defs.h
 AMCUIMAGEB_OFF = 0x10100000
 # APPLICATION+FOOTER+CALCMN
-AMCUAPP_CALCMN_SIZE = 16640
+AMCUAPP_CALCMN_SIZE = 14K
 # AMCUAPP_END = AMCUAPP.BIN - CALCMSIZE
-AMCUAPP_END  = 16384
+AMCUAPP_END  = 14080
 # AMCUFOOTER_OFFSET = AMCUAPP_END - FOOTERSIZE (384)
-AMCUAPP_FOOTER_OFFSET = 16000
+AMCUAPP_FOOTER_OFFSET = 13696
 CY_DIGSIG_SIZE = 256
 VERNUM_SIZE = 64
 SHA256SUM_SIZE = 64
@@ -78,7 +79,7 @@ DIRS=src
 CLEANDIRS=$(DIRS)
 CLEAN_ALL_DIRS=$(addprefix cleanall-,$(CLEANDIRS) include)
 
-.PHONY: help all $(DIRS) TAGS $(CLEAN_ALL_DIRS) database db dbs cleandatabase cleandatabases cleandb dumpdb dumpdatabases dumpdbs dumpdatabase format gentoc2 amcuapp-build amcuapp
+.PHONY: help all git-hooks $(DIRS) TAGS $(CLEAN_ALL_DIRS) database db dbs cleandatabase cleandatabases cleandb dumpdb dumpdatabases dumpdbs dumpdatabase format gentoc2 amcuapp-build amcuapp
 
 .PHONY: $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(INFNPATCH_DIR)/cy8c6xxa_cm0plusB.ld $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualA.ld $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualB.ld
 
@@ -114,15 +115,13 @@ amcuapp-build: $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(INFNPATCH_DIR)/cy8c6xxa_c
 	export CY_TOOLS_PATHS=/opt/ModusToolbox/tools_3.0/; \
 	$(RM) $(DEPLOY_DIR); \
 	$(MKDIR) $(DEPLOY_DIR); \
-	$(MAKE) --directory=$(ROOT_DIR)/src; \
+	$(MAKE) --directory=$(ROOT_DIR)/src version.c; \
 	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm0plus.ld; \
+	$(CP) $(INFNPATCH_DIR)/startup_psoc6_02_cm0plus.S $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/startup_psoc6_02_cm0plus.S; \
 	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualA.ld $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm4_dual.ld; \
+	$(CP) $(INFNPATCH_DIR)/startup_psoc6_02_cm4.S $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/startup_psoc6_02_cm4.S; \
 	$(MAKE) --directory=$(ROOT_DIR) install; \
-	$(MV) $(INSTALL_BIN_DIR)/amcuapp.hex $(DEPLOY_DIR)/amcuappA.hex; \
-	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm0plusB.ld $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm0plus.ld; \
-	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualB.ld $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm4_dual.ld; \
-	$(MAKE) --directory=$(ROOT_DIR) install; \
-	$(MV) $(INSTALL_BIN_DIR)/amcuapp.hex $(DEPLOY_DIR)/amcuappB.hex;
+	$(MV) $(INSTALL_BIN_DIR)/amcuapp.hex $(DEPLOY_DIR)/amcuappA.hex;
 
 amcuapp: amcuapp-build
 	@echo "Restructuring images, output to $(DEPLOY_DIR)"
@@ -138,17 +137,7 @@ amcuapp: amcuapp-build
 	$(TRUNCATE) -s $(SHA256SUM_SIZE) amcuappA.sha256; \
 	$(CAT) amcuappA.bin_ver_0 amcuappA.sha256 > amcuappA.bin_ver_sha_0; \
 	$(OPENSSL) -in amcuappA.bin_ver_sha_0 -rawin -out amcuappA_digisign.bin -inkey $(AMCU_PRIVATE_KEY); \
-	$(CAT) amcuappA.bin_ver_sha_0  amcuappA_digisign.bin amcuappA.bin_1 > amcuappA.bin; \
-	$(OBJCOPY) -I ihex -O binary -R .sec12 amcuappB.hex amcuappB.bin; \
-	$(TRUNCATE) -s $(AMCUAPP_CALCMN_SIZE) amcuappB.bin; \
-	$(SPLIT) -a 1 -d -b $(AMCUAPP_END) amcuappB.bin amcuappB.bin_; \
-	$(TRUNCATE) -s $(AMCUAPP_FOOTER_OFFSET) amcuappB.bin_0; \
-	$(CAT) amcuappB.bin_0 version_nums.txt > amcuappB.bin_ver_0; \
-	$(SHA256SUM) amcuappB.bin_ver_0 > amcuappB.sha256; \
-	$(TRUNCATE) -s $(SHA256SUM_SIZE) amcuappB.sha256; \
-	$(CAT) amcuappB.bin_ver_0 amcuappB.sha256 > amcuappB.bin_ver_sha_0; \
-	$(OPENSSL) -in amcuappB.bin_ver_sha_0 -rawin -out amcuappB_digisign.bin -inkey $(AMCU_PRIVATE_KEY); \
-	$(CAT) amcuappB.bin_ver_sha_0  amcuappB_digisign.bin amcuappB.bin_1 > amcuappB.bin; \
+	$(CAT) amcuappA.bin_ver_sha_0  amcuappA_digisign.bin amcuappA.bin_1 > amcuappA.bin; 
 
 gentoc2:
 	@echo "Running gentoc2 (linux) build"
@@ -168,9 +157,34 @@ gentoc2:
 	$(SREC_CAT) $(RSABIN_DIR)/amcu_toc2_zero.bin -binary -offset $(AMCUTOC2_OFF) -o $(RSABIN_DIR)/amcu_toc2_zero.hex -intel; \
 	$(SREC_CAT) $(RSABIN_DIR)/amcu_toc2.bin -binary -offset $(AMCUTOC2_OFF) -o $(RSABIN_DIR)/amcu_toc2.hex -intel; \
 
-$(DIRS):
+git-hooks:
+	@echo "Setting up git hooks (as needed)"
+	githooks/setup.sh
+
+$(DIRS): git-hooks
 	@echo "Entering $@"
-	$(Q)$(MAKE) -C $@
+	$(Q)$(MAKE) CONFIG_FILE=$(ROOT_DIR)/Config.mc -C $@
+	$(Q)$(MAKE) --directory=db obj-map
+
+dumpdb:
+	@echo "Dumping databases to sql files"
+	$(Q)$(MAKE) -C db dump
+
+database:
+	@echo "Making databases"
+	$(Q)$(MAKE) -C db all
+
+cleandatabase:
+	@echo "Removing databases"
+	$(Q)$(MAKE) -C db cleandb
+
+db: database
+dbs: database
+cleandb: cleandatabase
+dumpdbs: dumpdb
+dumpdatabase: dumpdb
+dumpdatabases: dumpdb
+sql: dumpdb
 
 cleanall: $(CLEAN_ALL_DIRS)
 	$(Q)-$(RM) *~
@@ -180,3 +194,38 @@ cleanall: $(CLEAN_ALL_DIRS)
 $(CLEAN_ALL_DIRS):
 	@echo "----| Cleaning up $(patsubst cleanall-%,%,$@)"
 	$(Q)$(MAKE) -C $(patsubst cleanall-%,%,$@) cleanalldir
+
+# An example of building the tags database.
+# Also an example of building the tags database of objects
+# defined inside DEFINE...(object) or DECLARE...(object),
+# LIST_HEAD(object), .macro object, EXCEPTION_VECTOR _object,
+# EXCEPTION_VECTOR .object. Those are themselves macros defined
+# in header files which expand to some type of definition/declaration
+# which the compiler understands. In 'xargs' arguments below,
+# if the regex matches, '\1' is the symbol added to the tags and its
+# location noted.
+#
+TAGS:
+	$(Q)$(RM) TAGS
+	$(Q)find . -regex ".*\.\(\(ld\..*\)\|\([chS]\pp\)\)" -and -not \
+			-regex ".*~" | \
+		xargs etags --regex='/.*[ \t]*\(DEFINE\|DECLARE\).*(\(.+\))/\1/'\
+			    --regex='/.*[ \t]*LIST_HEAD(\(.+\))/\1/'            \
+			    --regex='/^[ \t]*\.macro[ \t]+\([[:alnum:]_]+\)/\1/'\
+			    --regex='/^[ \t]*EXCEPTION_VECTOR[ \t]+\(.+\)/_\1/'  \
+			    --regex='/^[ \t]*EXCEPTION_VECTOR[ \t]+\(.+\)/.\1/' -a
+	$(Q)find . -regex ".*\.\(mk\)" -or -name Makefile | xargs etags -a -l makefile
+
+help:
+	@echo "The following variables should be set in the environment, possibly on the command line:"
+	@echo " VERBOSE : If not set, show formatted file names."
+	@echo "           If set to 1, also directories as they are entered and exited."
+	@echo "           If set to 2, also show commands."
+	@echo "Targets:"
+	@echo " help     : This help message."
+	@echo " cleanall : Clean up files generated by the build process."
+	@echo " TAGS     : Build the Emacs tags database."
+
+format:
+	command -v clang-format-6.0 >/dev/null 2>&1 || { echo "clang-format-6.0 not installed. Formatting aborted" >&2; exit 1; }
+	python scripts/ondemand-clang-format.py

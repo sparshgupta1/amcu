@@ -126,7 +126,7 @@ typedef struct
 #define CY_PS_FLASHBOOT_FLAGS                                                  \
     ((CY_PS_FLASHBOOT_CLK_50MHZ << CY_PS_TOC_FLAGS_CLOCKS_POS) |               \
      (CY_PS_FLASHBOOT_WAIT_20MS << CY_PS_TOC_FLAGS_DELAY_POS) |                \
-     (CY_PS_FLASHBOOT_VALIDATE_YES << CY_PS_TOC_FLAGS_APP_VERIFY_POS) |        \
+     (CY_PS_FLASHBOOT_VALIDATE_NO << CY_PS_TOC_FLAGS_APP_VERIFY_POS) |        \
      (CY_PS_FLASHBOOT_SWJ_PINS_ENABLE << CY_PS_TOC_FLAGS_SWJ_ENABLE_POS))
 
 /*

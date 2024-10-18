@@ -77,7 +77,7 @@ MEMORY
      * where 'xx' is the device group; for example, 'cy8c6xx7_cm4_dual.ld'.
      */
     ram               (rwx)    : ORIGIN = 0x08000000, LENGTH = 0x20000
-    ram_tst           (rw)    : ORIGIN = 0x080FF500, LENGTH = 0x100
+    ram_tst           (rw)     : ORIGIN = 0x080FF500, LENGTH = 0x100
     flash             (rx)     : ORIGIN = FLASH_A_BASE_ADDR, LENGTH = FLASH_CM0P_SIZE
 
 
