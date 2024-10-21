@@ -35,6 +35,8 @@
     /* Clear single BSS section */
     #define __STARTUP_CLEAR_BSS
 
+    #define __NO_SYSTEM_INIT
+
     .syntax    unified
     .arch    armv7-m
 
@@ -429,9 +431,7 @@ Reset_Handler:
     strlt    r0, [r1], #4
     blt    .L_loop3
 #endif /* __STARTUP_CLEAR_BSS_MULTIPLE || __STARTUP_CLEAR_BSS */
-    LDR r0, =_sgot
-    MOV r9,r0
-    
+
     /* Update Vector Table Offset Register. */
     ldr r0, =__ramVectors
     ldr r1, =CY_CPU_VTOR_ADDR

@@ -37,8 +37,7 @@ TRUNCATE := truncate
 OPENSSL  := openssl pkeyutl -sign
 SREC_CAT := srec_cat
 SED := sed
-VER=$(shell cd src; git describe --always --dirty)
-VER_NUMS=$(word 2, $(subst -, ,$(subst _, ,$(VER)))) # GGG.MMM.mmm.PPP
+VER_NUMS='0.0.0.0' # GGG.MMM.mmm.PPP
 #Metadata register in hex is 0x9050_0000
 #Silicon ID value at 0x9050_0000[2]=0xE4531202
 #Keep in mind that checksum bytes at the end will change if the values are modified
@@ -115,13 +114,14 @@ amcuapp-build: $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(INFNPATCH_DIR)/cy8c6xxa_c
 	export CY_TOOLS_PATHS=/opt/ModusToolbox/tools_3.0/; \
 	$(RM) $(DEPLOY_DIR); \
 	$(MKDIR) $(DEPLOY_DIR); \
-	$(MAKE) --directory=$(ROOT_DIR)/src version.c; \
+	$(MAKE) --directory=$(ROOT_DIR)/src; \
 	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm0plus.ld; \
 	$(CP) $(INFNPATCH_DIR)/startup_psoc6_02_cm0plus.S $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/startup_psoc6_02_cm0plus.S; \
 	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualA.ld $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm4_dual.ld; \
 	$(CP) $(INFNPATCH_DIR)/startup_psoc6_02_cm4.S $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/startup_psoc6_02_cm4.S; \
 	$(MAKE) --directory=$(ROOT_DIR) install; \
 	$(MV) $(INSTALL_BIN_DIR)/amcuapp.hex $(DEPLOY_DIR)/amcuappA.hex;
+
 
 amcuapp: amcuapp-build
 	@echo "Restructuring images, output to $(DEPLOY_DIR)"
