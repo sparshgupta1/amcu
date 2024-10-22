@@ -82,9 +82,9 @@ MEMORY
      * Your changes must be aligned with the corresponding memory regions for CM0+ core in 'xx_cm0plus.ld',
      * where 'xx' is the device group; for example, 'cy8c6xx7_cm0plus.ld'.
      */
-    ram_tst           (rw)    : ORIGIN = 0x080FF500, LENGTH = 0x100
-    ram               (rwx)   : ORIGIN = 0x0803D200, LENGTH = 0xC2400
-    flash             (rx)    : ORIGIN = FLASH_A_BASE_ADDR, LENGTH = 0x100000
+    ISR_RAM           (xrw)   : ORIGIN = 0x0803D100, LENGTH = 0x400
+    ram               (rwx)   : ORIGIN = 0x0803D500, LENGTH = 0xC1400
+    flash             (rx)    : ORIGIN = FLASH_A_BASE_ADDR, LENGTH = FW_IMAGE_PARTITION_SIZE
 
     /* This is a 32K flash region used for EEPROM emulation. This region can also be used as the general purpose flash.
      * You can assign sections to this memory region for only one of the cores.
@@ -102,6 +102,8 @@ MEMORY
     xip               (rx)    : ORIGIN = 0x18000000, LENGTH = 0x8000000    /* 128 MB */
     efuse             (r)     : ORIGIN = 0x90700000, LENGTH = 0x100000     /*   1 MB */
 }
+__flash_begin = ORIGIN(flash) + FLASH_CM0P_SIZE;
+__flash_end = ORIGIN(flash) + (LENGTH(flash) - FLASH_CM0P_SIZE) ;
 
 /* Library configurations */
 GROUP(libgcc.a libc.a libm.a libnosys.a)
@@ -145,7 +147,7 @@ __cy_app_verify_length = LENGTH(flash) - __cy_boot_signature_size;
 
 SECTIONS
 {
-.cy_app_header ORIGIN (flash):
+    .cy_app_header ORIGIN (flash):
     {
         KEEP(*(.cy_app_header))
     } > flash
@@ -166,14 +168,10 @@ SECTIONS
     .text ORIGIN(flash) + FLASH_CM0P_SIZE :
     {
         . = ALIGN(4);
-        __Vectors = . ;
-        KEEP(*(.vectors))
-        . = ALIGN(4);
-        __Vectors_End = .;
-        __Vectors_Size = __Vectors_End - __Vectors;
-        __end__ = .;
+        __flash_vector_table_begin = . ;
+        KEEP(*(.vectors)) /* Startup code */
+        __flash_vector_table_end = . ;/* __flash_vector_table_begin + SIZEOF(.vectors) ;*/
 
-        . = ALIGN(4);
         *(.text*)
 
         KEEP(*(.init))
@@ -197,72 +195,89 @@ SECTIONS
         *(.rodata .rodata.* .constdata .constdata.* .conststring .conststring.*)
 
         KEEP(*(.eh_frame*))
+        _etext = .;
     } > flash
+    
+    .ramVectors (NOLOAD) : ALIGN(8)
+    {
+        __ram_vector_table_begin = .;
+        KEEP(*(.vectors)) /* Startup code */
+        __ram_vector_table_end = .; /*__ram_vector_table_begin + SIZEOF(.vectors) ;*/
+    } >ISR_RAM
+    /*__ram_vector_table_begin = ADDR(.vectors) ;*/
+    
+    .got :
+    {
+        . = ALIGN(4);
+        *(.got)
+        *(.plt)
+        *(.got.plt)
+        KEEP(*(.igot.plt))
+        . = ALIGN(4);
+    } >ram AT > flash
+    __flash_global_offset_table_begin = LOADADDR(.got) ;
+    __flash_global_offset_table_end = __flash_global_offset_table_begin + SIZEOF(.got) ;
+    __ram_global_offset_table_begin = ADDR(.got) ;
+    __ram_global_offset_table_end = __ram_global_offset_table_begin + SIZEOF(.got) ;
 
 
     .ARM.extab :
     {
+        . = ALIGN(4);
         *(.ARM.extab* .gnu.linkonce.armextab.*)
+        . = ALIGN(4);
     } > flash
-
-    __exidx_start = .;
 
     .ARM.exidx :
     {
+        . = ALIGN(4);
+        __exidx_start = .;
         *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+        __exidx_end = .;
     } > flash
-    __exidx_end = .;
 
-
-    /* To copy multiple ROM to RAM sections,
-     * uncomment .copy.table section and,
-     * define __STARTUP_COPY_MULTIPLE in startup_psoc6_02_cm4.S */
-    .copy.table :
+    .preinit_array     :
     {
+         . = ALIGN(4);
+    KEEP (*(.preinit_array*))
+    KEEP (*(.preinit_array*))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
+        KEEP (*(.preinit_array*))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
         . = ALIGN(4);
-        __copy_table_start__ = .;
-
-        /* Copy interrupt vectors from flash to RAM */
-        LONG (__Vectors)                                    /* From */
-        LONG (__ram_vectors_start__)                        /* To   */
-        LONG (__Vectors_End - __Vectors)                    /* Size */
-
-        /* Copy data section to RAM */
-        LONG (__etext)                                      /* From */
-        LONG (__data_start__)                               /* To   */
-        LONG (__data_end__ - __data_start__)                /* Size */
-
-        /* Copy data section to RAM */
-        LONG (__flash_global_offset_table_begin)                                      /* From */
-        LONG (__ram_global_offset_table_begin)                               /* To   */
-        LONG (__ram_global_offset_table_end - __ram_global_offset_table_begin)                /* Size */
-
-        __copy_table_end__ = .;
     } > flash
+    __preinit_array_start = LOADADDR(.preinit_array);
+    __preinit_array_end = __preinit_array_start + SIZEOF(.preinit_array);
+    /*__ram_preinit_array_start = ADDR(.preinit_array) ;*/
+    /*__ram_preinit_array_end = __ram_preinit_array_start + SIZEOF(.preinit_array) ;*/
+
+  .init_array :
+  {
+    . = ALIGN(4);
+    KEEP (*(SORT(.init_array.*)))
+    KEEP (*(.init_array*))
+    . = ALIGN(4);
+  } > flash
+   __init_array_start = LOADADDR(.init_array);
+   __init_array_end = __init_array_start + SIZEOF(.init_array);
+   /*__ram_init_array_start = ADDR(.init_array) ;*/
+   /*__ram_init_array_end = __ram_init_array_start + SIZEOF(.init_array) ;*/
+
+  .fini_array :
+  {
+    . = ALIGN(4);
+    KEEP (*(SORT(.fini_array.*)))
+    KEEP (*(.fini_array*))
+    . = ALIGN(4);
+  } > flash
+  __fini_array_start = LOADADDR(.fini_array) ;
+  __fini_array_end = __fini_array_start + SIZEOF(.fini_array) ;
+  /*__ram_fini_array_start = ADDR(.fini_array) ;*/
+  /*__ram_fini_array_end = __ram_fini_array_start + SIZEOF(.fini_array) ;*/
 
 
-    /* To clear multiple BSS sections,
-     * uncomment .zero.table section and,
-     * define __STARTUP_CLEAR_BSS_MULTIPLE in startup_psoc6_02_cm4.S */
-    .zero.table :
-    {
-        . = ALIGN(4);
-        __zero_table_start__ = .;
-        LONG (__bss_start__)
-        LONG (__bss_end__ - __bss_start__)
-        __zero_table_end__ = .;
-    } > flash
-
-    __etext =  . ;
-
-    .ramVectors (NOLOAD) : ALIGN(8)
-    {
-        __ram_vectors_start__ = .;
-        KEEP(*(.ram_vectors))
-        __ram_vectors_end__   = .;
-    } > ram
-
-    .data __ram_vectors_end__ :
+    /* Used by the startup to initialize data */
+    .data :
     {
         . = ALIGN(4);
         __data_start__ = .;
@@ -271,47 +286,42 @@ SECTIONS
         *(.data*)
 
         . = ALIGN(4);
-        /* preinit data */
-        PROVIDE_HIDDEN (__preinit_array_start = .);
-        KEEP(*(.preinit_array))
-        PROVIDE_HIDDEN (__preinit_array_end = .);
-
-        . = ALIGN(4);
-        /* init data */
-        PROVIDE_HIDDEN (__init_array_start = .);
-        KEEP(*(SORT(.init_array.*)))
-        KEEP(*(.init_array))
-        PROVIDE_HIDDEN (__init_array_end = .);
-
-        . = ALIGN(4);
-        /* finit data */
-        PROVIDE_HIDDEN (__fini_array_start = .);
-        KEEP(*(SORT(.fini_array.*)))
-        KEEP(*(.fini_array))
-        PROVIDE_HIDDEN (__fini_array_end = .);
-
         KEEP(*(.jcr*))
         . = ALIGN(4);
 
         KEEP(*(.cy_ramfunc*))
         . = ALIGN(4);
-         __data_end__ = .;
+
+        __data_end__ = .;
+
     } > ram AT>flash
-
-    .got :
-    {
-        . = ALIGN(4);
-        *(.got)
-        *(.got.plt)
-    } >ram AT> flash
-
-    __flash_global_offset_table_begin = LOADADDR(.got) ;
-    __flash_global_offset_table_end = __flash_global_offset_table_begin + SIZEOF(.got) ;
-    __ram_global_offset_table_begin = ADDR(.got) ;
-    __ram_global_offset_table_end = __ram_global_offset_table_begin + SIZEOF(.got) ;
-
+    _sidata = LOADADDR(.data);
 
     /* Flash area */
+    FLASH_CALCMN_START_ADDRESS = FLASH_A_BASE_ADDR + FLASH_CALCMN_OFFSET;
+    .calcmn_flash FLASH_CALCMN_START_ADDRESS :
+    {
+        BYTE(0xDE);
+        BYTE(0xC0);
+        BYTE(0xAD);
+        BYTE(0xDE);
+
+        BYTE(0xDE);
+        BYTE(0xC0);
+        BYTE(0xAD);
+        BYTE(0xDE);
+
+        BYTE(0xDE);
+        BYTE(0xC0);
+        BYTE(0xAD);
+        BYTE(0xDE);
+
+        BYTE(0xDE);
+        BYTE(0xC0);
+        BYTE(0xAD);
+        BYTE(0xDE);
+       KEEP(*(.calcmn_flash));
+    } > flash
 
     /* Place variables in the section that should not be initialized during the
     *  device startup.
@@ -374,14 +384,13 @@ SECTIONS
     /* Check if data + heap + stack exceeds RAM limit */
     ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
 
-    FLASH_CALCMN_START_ADDRESS = FLASH_A_BASE_ADDR + 0x4000;
+
     /* Used for the digital signature of the secure application and the Bootloader SDK application.
     * The size of the section depends on the required data size. */
-    .cy_app_signature (FLASH_CALCMN_START_ADDRESS - __cy_boot_signature_size) :
+    .cy_app_signature FLASH_CALCMN_START_ADDRESS - __cy_boot_signature_size :
     {
         KEEP(*(.cy_app_signature))
     } > flash
-
 
     /* Supervisory Flash: User data */
     .cy_sflash_user_data :

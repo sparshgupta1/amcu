@@ -29,11 +29,7 @@
     /* The CPU VTOR register */
     #define CY_CPU_VTOR_ADDR            0xE000ED08
 
-    /* Copy flash vectors and data section to RAM */
-    #define __STARTUP_COPY_MULTIPLE
-
-    /* Clear single BSS section */
-    #define __STARTUP_CLEAR_BSS
+    #define FW_ANYWHERE_STARTUP_INCLUDED 1
 
     .syntax    unified
     .arch    armv7-m
@@ -272,7 +268,6 @@ __ramVectors:
     .space  __VectorsSize
     .size   __ramVectors, . - __ramVectors
 
-
     .text
     .thumb
     .thumb_func
@@ -310,163 +305,28 @@ cy_toolchain_init:
     .type    Reset_Handler, %function
 
 Reset_Handler:
-    bl Cy_OnResetUser
-    cpsid i
+  bl Cy_OnResetUser
+  cpsid i
+  #ifdef FW_ANYWHERE_STARTUP_INCLUDED
+    #include "fw_anywhere_startup_inline_cm4.S"
+  #endif
 
-/*  Firstly it copies data from read only memory to RAM. There are two schemes
- *  to copy. One can copy more than one sections. Another can only copy
- *  one section.  The former scheme needs more instructions and read-only
- *  data to implement than the latter.
- *  Macro __STARTUP_COPY_MULTIPLE is used to choose between two schemes.  */
+  /* Enable the FPU if used */
+  bl Cy_SystemInitFpuEnable
 
-#ifdef __STARTUP_COPY_MULTIPLE
-/*  Multiple sections scheme.
- *
- *  Between symbol address __copy_table_start__ and __copy_table_end__,
- *  there are array of triplets, each of which specify:
- *    offset 0: LMA of start of a section to copy from
- *    offset 4: VMA of start of a section to copy to
- *    offset 8: size of the section to copy. Must be multiply of 4
- *
- *  All addresses must be aligned to 4 bytes boundary.
- */
-    ldr    r4, =__copy_table_start__
-    ldr    r5, =__copy_table_end__
+/* Execute main application */
+  bl main
 
-.L_loop0:
-    cmp    r4, r5
-    bge    .L_loop0_done
-    ldr    r1, [r4]
-    ldr    r2, [r4, #4]
-    ldr    r3, [r4, #8]
+LoopForever:
+    b LoopForever
 
-.L_loop0_0:
-    subs    r3, #4
-    ittt    ge
-    ldrge    r0, [r1, r3]
-    strge    r0, [r2, r3]
-    bge    .L_loop0_0
+  .pool
+  .size    Reset_Handler, . - Reset_Handler
 
-    adds    r4, #12
-    b    .L_loop0
-
-.L_loop0_done:
-#else
-/*  Single section scheme.
- *
- *  The ranges of copy from/to are specified by following symbols
- *    __etext: LMA of start of the section to copy from. Usually end of text
- *    __data_start__: VMA of start of the section to copy to
- *    __data_end__: VMA of end of the section to copy to
- *
- *  All addresses must be aligned to 4 bytes boundary.
- */
-    ldr    r1, =__etext
-    ldr    r2, =__data_start__
-    ldr    r3, =__data_end__
-
-.L_loop1:
-    cmp    r2, r3
-    ittt    lt
-    ldrlt    r0, [r1], #4
-    strlt    r0, [r2], #4
-    blt    .L_loop1
-#endif /*__STARTUP_COPY_MULTIPLE */
-
-/*  This part of work usually is done in C library startup code. Otherwise,
- *  define this macro to enable it in this startup.
- *
- *  There are two schemes too. One can clear multiple BSS sections. Another
- *  can only clear one section. The former is more size expensive than the
- *  latter.
- *
- *  Define macro __STARTUP_CLEAR_BSS_MULTIPLE to choose the former.
- *  Otherwise define macro __STARTUP_CLEAR_BSS to choose the later.
- */
-#ifdef __STARTUP_CLEAR_BSS_MULTIPLE
-/*  Multiple sections scheme.
- *
- *  Between symbol address __copy_table_start__ and __copy_table_end__,
- *  there are array of tuples specifying:
- *    offset 0: Start of a BSS section
- *    offset 4: Size of this BSS section. Must be multiply of 4
- */
-    ldr    r3, =__zero_table_start__
-    ldr    r4, =__zero_table_end__
-
-.L_loop2:
-    cmp    r3, r4
-    bge    .L_loop2_done
-    ldr    r1, [r3]
-    ldr    r2, [r3, #4]
-    movs    r0, 0
-
-.L_loop2_0:
-    subs    r2, #4
-    itt    ge
-    strge    r0, [r1, r2]
-    bge    .L_loop2_0
-
-    adds    r3, #8
-    b    .L_loop2
-.L_loop2_done:
-#elif defined (__STARTUP_CLEAR_BSS)
-/*  Single BSS section scheme.
- *
- *  The BSS section is specified by following symbols
- *    __bss_start__: start of the BSS section.
- *    __bss_end__: end of the BSS section.
- *
- *  Both addresses must be aligned to 4 bytes boundary.
- */
-    ldr    r1, =__bss_start__
-    ldr    r2, =__bss_end__
-
-    movs    r0, 0
-.L_loop3:
-    cmp    r1, r2
-    itt    lt
-    strlt    r0, [r1], #4
-    blt    .L_loop3
-#endif /* __STARTUP_CLEAR_BSS_MULTIPLE || __STARTUP_CLEAR_BSS */
-    LDR r0, =_sgot
-    MOV r9,r0
-    
-    /* Update Vector Table Offset Register. */
-    ldr r0, =__ramVectors
-    ldr r1, =CY_CPU_VTOR_ADDR
-    str r0, [r1]
-    dsb 0xF
-
-    /* Enable the FPU if used */
-    bl Cy_SystemInitFpuEnable
-
-#ifndef __NO_SYSTEM_INIT
-    bl    SystemInit
-#endif
-
-    /* OS-specific low-level initialization */
-    bl    cy_toolchain_init
-
-    /* Call C/C++ static constructors */
-    bl    __libc_init_array
-
-    /* Execute main application */
-    bl    main
-
-    /* Call C/C++ static destructors */
-    bl    __libc_fini_array
-
-    /* Should never get here */
-    b   .
-
-    .pool
-    .size    Reset_Handler, . - Reset_Handler
-
-    .align    1
-    .thumb_func
-    .weak    Default_Handler
-    .type    Default_Handler, %function
+  .align    1
+  .thumb_func
+  .weak    Default_Handler
+  .type    Default_Handler, %function
 
 Default_Handler:
     b    .
@@ -694,6 +554,4 @@ Fault_Handler:
     def_irq_handler  sdhc_1_interrupt_general_IRQHandler     /* Consolidated interrupt for mxsdhc for everything else */
 
     .end
-
-
 /* [] END OF FILE */

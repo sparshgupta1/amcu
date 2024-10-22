@@ -53,11 +53,11 @@ AMCUIMAGE_SIZE = 1M
 #Start of App-B, should match include/amcu_mem_defs.h
 AMCUIMAGEB_OFF = 0x10100000
 # APPLICATION+FOOTER+CALCMN
-AMCUAPP_CALCMN_SIZE = 16640
+AMCUAPP_CALCMN_SIZE = 896K
 # AMCUAPP_END = AMCUAPP.BIN - CALCMSIZE
-AMCUAPP_END  = 16384
+AMCUAPP_END  = 899072
 # AMCUFOOTER_OFFSET = AMCUAPP_END - FOOTERSIZE (384)
-AMCUAPP_FOOTER_OFFSET = 16000
+AMCUAPP_FOOTER_OFFSET = 898688
 CY_DIGSIG_SIZE = 256
 VERNUM_SIZE = 64
 SHA256SUM_SIZE = 64
@@ -78,7 +78,7 @@ DIRS=src
 CLEANDIRS=$(DIRS)
 CLEAN_ALL_DIRS=$(addprefix cleanall-,$(CLEANDIRS) include)
 
-.PHONY: help all $(DIRS) TAGS $(CLEAN_ALL_DIRS) database db dbs cleandatabase cleandatabases cleandb dumpdb dumpdatabases dumpdbs dumpdatabase format gentoc2 amcuapp-build amcuapp
+.PHONY: help all git-hooks $(DIRS) TAGS $(CLEAN_ALL_DIRS) database db dbs cleandatabase cleandatabases cleandb dumpdb dumpdatabases dumpdbs dumpdatabase format gentoc2 amcuapp-build amcuapp
 
 .PHONY: $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(INFNPATCH_DIR)/cy8c6xxa_cm0plusB.ld $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualA.ld $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualB.ld
 
@@ -116,13 +116,13 @@ amcuapp-build: $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(INFNPATCH_DIR)/cy8c6xxa_c
 	$(MKDIR) $(DEPLOY_DIR); \
 	$(MAKE) --directory=$(ROOT_DIR)/src; \
 	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm0plusA.ld $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm0plus.ld; \
+	$(CP) $(INFNPATCH_DIR)/startup_psoc6_02_cm0plus.S $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/startup_psoc6_02_cm0plus.S; \
+	$(CP) $(INFNPATCH_DIR)/fw_anywhere_startup_inline.S $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/fw_anywhere_startup_inline.S; \
 	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualA.ld $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm4_dual.ld; \
+	$(CP) $(INFNPATCH_DIR)/startup_psoc6_02_cm4.S $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/startup_psoc6_02_cm4.S; \
+	$(CP) $(INFNPATCH_DIR)/fw_anywhere_startup_inline_cm4.S $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/fw_anywhere_startup_inline_cm4.S; \
 	$(MAKE) --directory=$(ROOT_DIR) install; \
-	$(MV) $(INSTALL_BIN_DIR)/amcuapp.hex $(DEPLOY_DIR)/amcuappA.hex; \
-	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm0plusB.ld $(M0_TARGET_DIR)/COMPONENT_CM0P/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm0plus.ld; \
-	$(CP) $(INFNPATCH_DIR)/cy8c6xxa_cm4_dualB.ld $(M4_TARGET_DIR)/COMPONENT_CM4/TOOLCHAIN_GCC_ARM/cy8c6xxa_cm4_dual.ld; \
-	$(MAKE) --directory=$(ROOT_DIR) install; \
-	$(MV) $(INSTALL_BIN_DIR)/amcuapp.hex $(DEPLOY_DIR)/amcuappB.hex;
+	$(MV) $(INSTALL_BIN_DIR)/amcuapp.hex $(DEPLOY_DIR)/amcuappA.hex;
 
 amcuapp: amcuapp-build
 	@echo "Restructuring images, output to $(DEPLOY_DIR)"
@@ -139,16 +139,6 @@ amcuapp: amcuapp-build
 	$(CAT) amcuappA.bin_ver_0 amcuappA.sha256 > amcuappA.bin_ver_sha_0; \
 	$(OPENSSL) -in amcuappA.bin_ver_sha_0 -rawin -out amcuappA_digisign.bin -inkey $(AMCU_PRIVATE_KEY); \
 	$(CAT) amcuappA.bin_ver_sha_0  amcuappA_digisign.bin amcuappA.bin_1 > amcuappA.bin; \
-	$(OBJCOPY) -I ihex -O binary -R .sec12 amcuappB.hex amcuappB.bin; \
-	$(TRUNCATE) -s $(AMCUAPP_CALCMN_SIZE) amcuappB.bin; \
-	$(SPLIT) -a 1 -d -b $(AMCUAPP_END) amcuappB.bin amcuappB.bin_; \
-	$(TRUNCATE) -s $(AMCUAPP_FOOTER_OFFSET) amcuappB.bin_0; \
-	$(CAT) amcuappB.bin_0 version_nums.txt > amcuappB.bin_ver_0; \
-	$(SHA256SUM) amcuappB.bin_ver_0 > amcuappB.sha256; \
-	$(TRUNCATE) -s $(SHA256SUM_SIZE) amcuappB.sha256; \
-	$(CAT) amcuappB.bin_ver_0 amcuappB.sha256 > amcuappB.bin_ver_sha_0; \
-	$(OPENSSL) -in amcuappB.bin_ver_sha_0 -rawin -out amcuappB_digisign.bin -inkey $(AMCU_PRIVATE_KEY); \
-	$(CAT) amcuappB.bin_ver_sha_0  amcuappB_digisign.bin amcuappB.bin_1 > amcuappB.bin; \
 
 gentoc2:
 	@echo "Running gentoc2 (linux) build"
@@ -171,12 +161,3 @@ gentoc2:
 $(DIRS):
 	@echo "Entering $@"
 	$(Q)$(MAKE) -C $@
-
-cleanall: $(CLEAN_ALL_DIRS)
-	$(Q)-$(RM) *~
-	$(RM) $(INSTALL_DIR)
-	@echo "----| Removing $(INSTALL_DIR) dir"
-
-$(CLEAN_ALL_DIRS):
-	@echo "----| Cleaning up $(patsubst cleanall-%,%,$@)"
-	$(Q)$(MAKE) -C $(patsubst cleanall-%,%,$@) cleanalldir

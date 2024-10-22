@@ -1,25 +1,11 @@
-/*        ___
- *   ___ / _ \
- *  / _ ' (_) |       __  _
- * | (_) ,___/       / _|(_)
- *  \___/  _  _ __  | |_  _  _ __    ___  _ __  __ _
- *        | || '_ \ |  _|| || '_ \  / _ \| '__|/ _` |
- *        | || | | || |  | || | | ||  __/| |  | (_| |
- *        |_||_| |_||_|  |_||_| |_| \___||_|   \__,_|
- *
- * main.c     Main for XR_TMCU application linked with FreeRTOS and
- *            a bsp. The Required tasks are created and the scheduler
- *            is started.
- *
- * Copyright (C) 2021,2022,2023,2024 Infinera. All rights reserved.
- *
- * Infinera Proprietary and Confidential
- *
- */
-
 #include "cy_device.h"
 #include "cy_pdl.h"
 #include "cybsp.h"
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <unistd.h>
 
 /* Macros */
 #define CM0_VTABLE_REG_ADDR (0x40201120)
@@ -39,8 +25,7 @@
 #define M0_IMAGE_B_STANDARD_START (0x10100400)
 #define M4_IMAGE_B_STANDARD_START (0x10120000)
 
-//#define AMCU_APP_END 0x5000 //(#0x3700 OG boot size, 0x4000 for python build)
-#define AMCU_APP_END 0x4000 //(#0x3700 OG boot size, 0x4000 for python build)
+#define AMCU_APP_END 0xDB800
 #define CY_PS_DIGSIG_SIZE 256
 #define CY_PS_CPUID (0xC6000000UL)
 #define CM0P_VECTOR_TABLE_OFFSET (0x400 - 0x10)
@@ -96,33 +81,22 @@ CY_SECTION(".cy_app_signature")
 __USED
 CY_ALIGN(4) static const uint8_t cy_ps_appSignature[CY_PS_DIGSIG_SIZE] = {0u};
 
-__attribute__((__noinline__)) void *get_pc()
-{
-    return __builtin_return_address(0);
-}
-
-int fw_upg_get_running_image(void)
-{
-    if (((uintptr_t)&fw_upg_get_running_image < 0x10100000) &&
-        ((uintptr_t)&fw_upg_get_running_image > 0x10000000))
-    {
-        return 0xA;
-    }
-    else
-    {
-        return 0xB;
-    }
-}
 
 int main(void)
 {
-    // TEST TO SEE IF CM4 STARTED
-    volatile uint32_t *pc    = (uint32_t *)(0x080FF508);
-    volatile uint32_t *tst  =  (uint32_t *)(0x080FF50C);
-    volatile uint32_t *tst1  = (uint32_t *)(0x080FF510);
-    *tst = 0xC0DEDEAD;
-    *pc = (uint32_t)get_pc();
-    *tst1 = (uint32_t)fw_upg_get_running_image();
+    // TESTS TO SEE IF CM4 STARTED
+    volatile uint32_t *breg3 = (uint32_t *)(0x0803C200);
+    double d                 = 36.23;
+    *breg3                   = sqrt(d);
+    char buf[256];
+    volatile uint32_t *breg4 = (uint32_t *)(0x0803C208);
+    uint8_t *p_e             = (uint8_t *)malloc(sizeof(uint8_t) * 1);
+    *p_e                     = 0x4;
+    *breg4                   = ()sbrk(0);
+    volatile uint32_t *breg5 = (uint32_t *)(0x0803C20C);
+    *breg5                   = 0x1A2B3CD4;
+    int retVal = snprintf(buf, sizeof(buf), "%c", 3); /*Not working but not going to the Fault_handler*/
+    *breg5                   = 0xA1B2C3D4 + retVal;      /*This piece of code is never reached*/
     for (;;)
     {
     }

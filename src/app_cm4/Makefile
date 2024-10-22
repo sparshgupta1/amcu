@@ -95,8 +95,7 @@ SOURCES=
 
 # Like SOURCES, but for include directories. Value should be paths to
 # directories (without a leading -I).
-INCLUDES=../shared/include
-INCLUDES+=../../include
+INCLUDES=../../include
 # Add additional defines to the build process (without a leading -D).
 DEFINES=CY_IPC_DEFAULT_CFG_DISABLE=1
 
@@ -107,7 +106,7 @@ VFP_SELECT=
 #
 # NOTE: Includes and defines should use the INCLUDES and DEFINES variable
 # above.
-CFLAGS=-Werror -Wall -mfp16-format=ieee
+CFLAGS=-mfp16-format=ieee -fpic -mno-pic-data-is-text-relative -mpic-register=r9 -msingle-pic-base -ffunction-sections -fdata-sections
 
 # Additional / custom C++ compiler flags.
 #
