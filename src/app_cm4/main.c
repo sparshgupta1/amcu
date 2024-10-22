@@ -92,10 +92,10 @@ int main(void)
     volatile uint32_t *breg4 = (uint32_t *)(0x0803C208);
     uint8_t *p_e             = (uint8_t *)malloc(sizeof(uint8_t) * 1);
     *p_e                     = 0x4;
-    *breg4                   = ()sbrk(0);
+    *breg4                   = (uint32_t)sbrk(0);
     volatile uint32_t *breg5 = (uint32_t *)(0x0803C20C);
     *breg5                   = 0x1A2B3CD4;
-    int retVal = snprintf(buf, sizeof(buf), "%c", 3); /*Not working but not going to the Fault_handler*/
+    int retVal = snprintf(buf, sizeof(buf), "ABC-%c", 3); /*Not working but not going to the Fault_handler*/
     *breg5                   = 0xA1B2C3D4 + retVal;      /*This piece of code is never reached*/
     for (;;)
     {
