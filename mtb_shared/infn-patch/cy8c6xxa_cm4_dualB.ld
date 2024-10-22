@@ -37,7 +37,7 @@ MEMORY
 {
     ram_tst (rw) : ORIGIN = 0x080FF500, LENGTH = 0x100
     ram (rwx) : ORIGIN = 0x0803D200, LENGTH = 0xC2400
-    flash (rx) : ORIGIN = ((0x10005000) + ((0x200000) / 2)), LENGTH = 0x100000
+    flash (rx) : ORIGIN = ((0x10000000) + ((0x200000) / 2)), LENGTH = 0x100000
 
 
 
@@ -79,10 +79,10 @@ SECTIONS
     } > flash
 
 
-    ASSERT(__cy_m0p_code_end <= ORIGIN(flash) + 0x2000, "CM0+ flash image overflows with CM4, increase FLASH_CM0P_SIZE")
+    ASSERT(__cy_m0p_code_end <= ORIGIN(flash) + 0x20000, "CM0+ flash image overflows with CM4, increase FLASH_CM0P_SIZE")
 
 
-    .text ORIGIN(flash) + 0x2000 :
+    .text ORIGIN(flash) + 0x20000 :
     {
         . = ALIGN(4);
         __Vectors = . ;
@@ -151,11 +151,6 @@ SECTIONS
         LONG (__data_start__)
         LONG (__data_end__ - __data_start__)
 
-
-        LONG (__flash_global_offset_table_begin)
-        LONG (__ram_global_offset_table_begin)
-        LONG (__ram_global_offset_table_end - __ram_global_offset_table_begin)
-
         __copy_table_end__ = .;
     } > flash
 
@@ -214,20 +209,10 @@ SECTIONS
 
         KEEP(*(.cy_ramfunc*))
         . = ALIGN(4);
-    __data_end__ = .;
+
+        __data_end__ = .;
+
     } > ram AT>flash
-
-    .got :
-    {
-        . = ALIGN(4);
-        *(.got)
-        *(.got.plt)
-    } >ram AT> flash
-
-    __flash_global_offset_table_begin = LOADADDR(.got) ;
-    __flash_global_offset_table_end = __flash_global_offset_table_begin + SIZEOF(.got) ;
-    __ram_global_offset_table_begin = ADDR(.got) ;
-    __ram_global_offset_table_end = __ram_global_offset_table_begin + SIZEOF(.got) ;
 
 
 
@@ -278,10 +263,10 @@ SECTIONS
 
     ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
 
-    FLASH_CALCMN_START_ADDRESS = ((0x10005000) + ((0x200000) / 2)) + 0x4000;
 
 
-    .cy_app_signature (FLASH_CALCMN_START_ADDRESS - __cy_boot_signature_size) :
+
+    .cy_app_signature (0x10103700 - __cy_boot_signature_size) :
     {
         KEEP(*(.cy_app_signature))
     } > flash
@@ -349,7 +334,7 @@ SECTIONS
 
 
 
-__cy_memory_0_start = ((0x10005000) + ((0x200000) / 2));
+__cy_memory_0_start = ((0x10000000) + ((0x200000) / 2));
 __cy_memory_0_length = 0x00100000;
 __cy_memory_0_row_size = 0x200;
 

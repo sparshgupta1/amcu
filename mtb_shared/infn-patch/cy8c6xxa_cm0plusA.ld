@@ -34,7 +34,6 @@ STACK_SIZE = 0x1000;
 
 
 
-
 EXTERN(Reset_Handler)
 
 
@@ -49,9 +48,10 @@ MEMORY
 
 
 
-    ram (rwx) : ORIGIN = 0x08000000, LENGTH = 0x20000
+    ISR_RAM (rwx) : ORIGIN = 0x08000000, LENGTH = 0x100
+    ram (rwx) : ORIGIN = 0x08000100, LENGTH = 0x1FF00
     ram_tst (rw) : ORIGIN = 0x080FF500, LENGTH = 0x100
-    flash (rx) : ORIGIN = (0x10005000), LENGTH = 0x2000
+    flash (rx) : ORIGIN = (0x10000000), LENGTH = 0x20000
     sflash_user_data (rx) : ORIGIN = 0x16000800, LENGTH = 0x800
     sflash_nar (rx) : ORIGIN = 0x16001A00, LENGTH = 0x200
     sflash_public_key (rx) : ORIGIN = 0x16005A00, LENGTH = 0xC00
@@ -60,6 +60,8 @@ MEMORY
     xip (rx) : ORIGIN = 0x18000000, LENGTH = 0x8000000
     efuse (r) : ORIGIN = 0x90700000, LENGTH = 0x100000
 }
+__flash_begin = ORIGIN(flash) + 0x400;
+__flash_end = ORIGIN(flash) + LENGTH(flash);
 
 
 GROUP(libgcc.a libc.a libm.a libnosys.a)
@@ -68,15 +70,10 @@ SECTIONS
 
     .text ORIGIN(flash) + 0x400 :
     {
-        . = ALIGN(4);
-        __Vectors = . ;
-        KEEP(*(.vectors))
-        . = ALIGN(4);
-        __Vectors_End = .;
-        __Vectors_Size = __Vectors_End - __Vectors;
-        __end__ = .;
+       __flash_vector_table_begin = . ;
+       KEEP(*(.vectors))
+       __flash_vector_table_end = .;
 
-        . = ALIGN(4);
         *(.text*)
 
         KEEP(*(.init))
@@ -100,69 +97,78 @@ SECTIONS
         *(.rodata .rodata.* .constdata .constdata.* .conststring .conststring.*)
 
         KEEP(*(.eh_frame*))
+        _etext = .;
     } > flash
+
+    .ramVectors (NOLOAD) : ALIGN(8)
+    {
+        __ram_vector_table_begin = .;
+        KEEP(*(.ram_vectors))
+        __ram_vector_table_end = .;
+    } >ISR_RAM
+
+
+    .got :
+    {
+        . = ALIGN(4);
+        *(.got)
+        *(.got.plt)
+        KEEP(*(.igot.plt))
+        . = ALIGN(4);
+    } >ram AT > flash
+    __flash_global_offset_table_begin = LOADADDR(.got) ;
+    __flash_global_offset_table_end = __flash_global_offset_table_begin + SIZEOF(.got) ;
+    __ram_global_offset_table_begin = ADDR(.got) ;
+    __ram_global_offset_table_end = __ram_global_offset_table_begin + SIZEOF(.got) ;
 
 
     .ARM.extab :
     {
+        . = ALIGN(4);
         *(.ARM.extab* .gnu.linkonce.armextab.*)
+        . = ALIGN(4);
     } > flash
-
-    __exidx_start = .;
 
     .ARM.exidx :
     {
+        . = ALIGN(4);
+        __exidx_start = .;
         *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-    } > flash
-    __exidx_end = .;
-
-
-
-
-
-    .copy.table :
-    {
-        . = ALIGN(4);
-        __copy_table_start__ = .;
-
-
-        LONG (__Vectors)
-        LONG (__ram_vectors_start__)
-        LONG (__Vectors_End - __Vectors)
-
-
-        LONG (__etext)
-        LONG (__data_start__)
-        LONG (__data_end__ - __data_start__)
-
-        __copy_table_end__ = .;
+        __exidx_end = .;
     } > flash
 
+    .preinit_array :
+  {
+    . = ALIGN(4);
+    PROVIDE_HIDDEN (__preinit_array_start = .);
+    KEEP (*(.preinit_array*))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
+    . = ALIGN(4);
+  } >flash
+
+  .init_array :
+  {
+    . = ALIGN(4);
+    PROVIDE_HIDDEN (__init_array_start = .);
+    KEEP (*(SORT(.init_array.*)))
+    KEEP (*(.init_array*))
+    PROVIDE_HIDDEN (__init_array_end = .);
+    . = ALIGN(4);
+  } >flash
+
+  .fini_array :
+  {
+    . = ALIGN(4);
+    PROVIDE_HIDDEN (__fini_array_start = .);
+    KEEP (*(SORT(.fini_array.*)))
+    KEEP (*(.fini_array*))
+    PROVIDE_HIDDEN (__fini_array_end = .);
+    . = ALIGN(4);
+  } >flash
 
 
-
-
-    .zero.table :
-    {
-        . = ALIGN(4);
-        __zero_table_start__ = .;
-        LONG (__bss_start__)
-        LONG (__bss_end__ - __bss_start__)
-        __zero_table_end__ = .;
-    } > flash
-
-    __etext = . ;
-
-
-    .ramVectors (NOLOAD) : ALIGN(8)
-    {
-        __ram_vectors_start__ = .;
-        KEEP(*(.ram_vectors))
-        __ram_vectors_end__ = .;
-    } > ram
-
-
-    .data __ram_vectors_end__ :
+    _sidata = LOADADDR(.data);
+    .data :
     {
         . = ALIGN(4);
         __data_start__ = .;
@@ -171,25 +177,6 @@ SECTIONS
         *(.data*)
 
         . = ALIGN(4);
-
-        PROVIDE_HIDDEN (__preinit_array_start = .);
-        KEEP(*(.preinit_array))
-        PROVIDE_HIDDEN (__preinit_array_end = .);
-
-        . = ALIGN(4);
-
-        PROVIDE_HIDDEN (__init_array_start = .);
-        KEEP(*(SORT(.init_array.*)))
-        KEEP(*(.init_array))
-        PROVIDE_HIDDEN (__init_array_end = .);
-
-        . = ALIGN(4);
-
-        PROVIDE_HIDDEN (__fini_array_start = .);
-        KEEP(*(SORT(.fini_array.*)))
-        KEEP(*(.fini_array))
-        PROVIDE_HIDDEN (__fini_array_end = .);
-
         KEEP(*(.jcr*))
         . = ALIGN(4);
 
@@ -228,6 +215,10 @@ SECTIONS
         . = ORIGIN(ram) + LENGTH(ram) - STACK_SIZE;
         __HeapLimit = .;
     } > ram
+
+
+
+
     .stack_dummy (NOLOAD):
     {
         KEEP(*(.stack*))
@@ -306,7 +297,7 @@ SECTIONS
 
 
 
-__cy_memory_0_start = (0x10005000);
+__cy_memory_0_start = (0x10000000);
 __cy_memory_0_length = 0x00200000;
 __cy_memory_0_row_size = 0x200;
 

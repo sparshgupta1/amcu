@@ -42,9 +42,9 @@ MEMORY
 
 
 
-    ram_tst (rw) : ORIGIN = 0x080FF500, LENGTH = 0x100
-    ram (rwx) : ORIGIN = 0x0803D200, LENGTH = 0xC2400
-    flash (rx) : ORIGIN = (0x10005000), LENGTH = 0x100000
+    ISR_RAM (xrw) : ORIGIN = 0x0803D100, LENGTH = 0x400
+    ram (rwx) : ORIGIN = 0x0803D500, LENGTH = 0xC1400
+    flash (rx) : ORIGIN = (0x10000000), LENGTH = ((0x200000) / 2)
 
 
 
@@ -62,6 +62,8 @@ MEMORY
     xip (rx) : ORIGIN = 0x18000000, LENGTH = 0x8000000
     efuse (r) : ORIGIN = 0x90700000, LENGTH = 0x100000
 }
+__flash_begin = ORIGIN(flash) + 0x20000;
+__flash_end = ORIGIN(flash) + (LENGTH(flash) - 0x20000) ;
 
 
 GROUP(libgcc.a libc.a libm.a libnosys.a)
@@ -71,7 +73,7 @@ __cy_app_verify_length = LENGTH(flash) - __cy_boot_signature_size;
 
 SECTIONS
 {
-.cy_app_header ORIGIN (flash):
+    .cy_app_header ORIGIN (flash):
     {
         KEEP(*(.cy_app_header))
     } > flash
@@ -86,20 +88,16 @@ SECTIONS
     } > flash
 
 
-    ASSERT(__cy_m0p_code_end <= ORIGIN(flash) + 0x2000, "CM0+ flash image overflows with CM4, increase FLASH_CM0P_SIZE")
+    ASSERT(__cy_m0p_code_end <= ORIGIN(flash) + 0x20000, "CM0+ flash image overflows with CM4, increase FLASH_CM0P_SIZE")
 
 
-    .text ORIGIN(flash) + 0x2000 :
+    .text ORIGIN(flash) + 0x20000 :
     {
         . = ALIGN(4);
-        __Vectors = . ;
+        __flash_vector_table_begin = . ;
         KEEP(*(.vectors))
-        . = ALIGN(4);
-        __Vectors_End = .;
-        __Vectors_Size = __Vectors_End - __Vectors;
-        __end__ = .;
+        __flash_vector_table_end = . ;
 
-        . = ALIGN(4);
         *(.text*)
 
         KEEP(*(.init))
@@ -123,72 +121,89 @@ SECTIONS
         *(.rodata .rodata.* .constdata .constdata.* .conststring .conststring.*)
 
         KEEP(*(.eh_frame*))
+        _etext = .;
     } > flash
+
+    .ramVectors (NOLOAD) : ALIGN(8)
+    {
+        __ram_vector_table_begin = .;
+        KEEP(*(.vectors))
+        __ram_vector_table_end = .;
+    } >ISR_RAM
+
+
+    .got :
+    {
+        . = ALIGN(4);
+        *(.got)
+        *(.plt)
+        *(.got.plt)
+        KEEP(*(.igot.plt))
+        . = ALIGN(4);
+    } >ram AT > flash
+    __flash_global_offset_table_begin = LOADADDR(.got) ;
+    __flash_global_offset_table_end = __flash_global_offset_table_begin + SIZEOF(.got) ;
+    __ram_global_offset_table_begin = ADDR(.got) ;
+    __ram_global_offset_table_end = __ram_global_offset_table_begin + SIZEOF(.got) ;
 
 
     .ARM.extab :
     {
+        . = ALIGN(4);
         *(.ARM.extab* .gnu.linkonce.armextab.*)
+        . = ALIGN(4);
     } > flash
-
-    __exidx_start = .;
 
     .ARM.exidx :
     {
+        . = ALIGN(4);
+        __exidx_start = .;
         *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+        __exidx_end = .;
     } > flash
-    __exidx_end = .;
 
-
-
-
-
-    .copy.table :
+    .preinit_array :
     {
+         . = ALIGN(4);
+    KEEP (*(.preinit_array*))
+    KEEP (*(.preinit_array*))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
+        KEEP (*(.preinit_array*))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
         . = ALIGN(4);
-        __copy_table_start__ = .;
-
-
-        LONG (__Vectors)
-        LONG (__ram_vectors_start__)
-        LONG (__Vectors_End - __Vectors)
-
-
-        LONG (__etext)
-        LONG (__data_start__)
-        LONG (__data_end__ - __data_start__)
-
-
-        LONG (__flash_global_offset_table_begin)
-        LONG (__ram_global_offset_table_begin)
-        LONG (__ram_global_offset_table_end - __ram_global_offset_table_begin)
-
-        __copy_table_end__ = .;
     } > flash
+    __preinit_array_start = LOADADDR(.preinit_array);
+    __preinit_array_end = __preinit_array_start + SIZEOF(.preinit_array);
+
+
+
+  .init_array :
+  {
+    . = ALIGN(4);
+    KEEP (*(SORT(.init_array.*)))
+    KEEP (*(.init_array*))
+    . = ALIGN(4);
+  } > flash
+   __init_array_start = LOADADDR(.init_array);
+   __init_array_end = __init_array_start + SIZEOF(.init_array);
+
+
+
+  .fini_array :
+  {
+    . = ALIGN(4);
+    KEEP (*(SORT(.fini_array.*)))
+    KEEP (*(.fini_array*))
+    . = ALIGN(4);
+  } > flash
+  __fini_array_start = LOADADDR(.fini_array) ;
+  __fini_array_end = __fini_array_start + SIZEOF(.fini_array) ;
 
 
 
 
 
-    .zero.table :
-    {
-        . = ALIGN(4);
-        __zero_table_start__ = .;
-        LONG (__bss_start__)
-        LONG (__bss_end__ - __bss_start__)
-        __zero_table_end__ = .;
-    } > flash
-
-    __etext = . ;
-
-    .ramVectors (NOLOAD) : ALIGN(8)
-    {
-        __ram_vectors_start__ = .;
-        KEEP(*(.ram_vectors))
-        __ram_vectors_end__ = .;
-    } > ram
-
-    .data __ram_vectors_end__ :
+    .data :
     {
         . = ALIGN(4);
         __data_start__ = .;
@@ -197,47 +212,42 @@ SECTIONS
         *(.data*)
 
         . = ALIGN(4);
-
-        PROVIDE_HIDDEN (__preinit_array_start = .);
-        KEEP(*(.preinit_array))
-        PROVIDE_HIDDEN (__preinit_array_end = .);
-
-        . = ALIGN(4);
-
-        PROVIDE_HIDDEN (__init_array_start = .);
-        KEEP(*(SORT(.init_array.*)))
-        KEEP(*(.init_array))
-        PROVIDE_HIDDEN (__init_array_end = .);
-
-        . = ALIGN(4);
-
-        PROVIDE_HIDDEN (__fini_array_start = .);
-        KEEP(*(SORT(.fini_array.*)))
-        KEEP(*(.fini_array))
-        PROVIDE_HIDDEN (__fini_array_end = .);
-
         KEEP(*(.jcr*))
         . = ALIGN(4);
 
         KEEP(*(.cy_ramfunc*))
         . = ALIGN(4);
-         __data_end__ = .;
+
+        __data_end__ = .;
+
     } > ram AT>flash
+    _sidata = LOADADDR(.data);
 
-    .got :
+
+    FLASH_CALCMN_START_ADDRESS = (0x10000000) + (0xDB800);
+    .calcmn_flash FLASH_CALCMN_START_ADDRESS :
     {
-        . = ALIGN(4);
-        *(.got)
-        *(.got.plt)
-    } >ram AT> flash
+        BYTE(0xDE);
+        BYTE(0xC0);
+        BYTE(0xAD);
+        BYTE(0xDE);
 
-    __flash_global_offset_table_begin = LOADADDR(.got) ;
-    __flash_global_offset_table_end = __flash_global_offset_table_begin + SIZEOF(.got) ;
-    __ram_global_offset_table_begin = ADDR(.got) ;
-    __ram_global_offset_table_end = __ram_global_offset_table_begin + SIZEOF(.got) ;
+        BYTE(0xDE);
+        BYTE(0xC0);
+        BYTE(0xAD);
+        BYTE(0xDE);
 
+        BYTE(0xDE);
+        BYTE(0xC0);
+        BYTE(0xAD);
+        BYTE(0xDE);
 
-
+        BYTE(0xDE);
+        BYTE(0xC0);
+        BYTE(0xAD);
+        BYTE(0xDE);
+       KEEP(*(.calcmn_flash));
+    } > flash
 
 
 
@@ -286,14 +296,13 @@ SECTIONS
 
     ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
 
-    FLASH_CALCMN_START_ADDRESS = (0x10005000) + 0x4000;
 
 
-    .cy_app_signature (FLASH_CALCMN_START_ADDRESS - __cy_boot_signature_size) :
+
+    .cy_app_signature FLASH_CALCMN_START_ADDRESS - __cy_boot_signature_size :
     {
         KEEP(*(.cy_app_signature))
     } > flash
-
 
 
     .cy_sflash_user_data :
@@ -357,7 +366,7 @@ SECTIONS
 
 
 
-__cy_memory_0_start = (0x10005000);
+__cy_memory_0_start = (0x10000000);
 __cy_memory_0_length = 0x00100000;
 __cy_memory_0_row_size = 0x200;
 

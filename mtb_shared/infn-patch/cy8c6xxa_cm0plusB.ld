@@ -51,7 +51,7 @@ MEMORY
 
     ram (rwx) : ORIGIN = 0x08000000, LENGTH = 0x20000
     ram_tst (rw) : ORIGIN = 0x080FF500, LENGTH = 0x100
-    flash (rx) : ORIGIN = ((0x10005000) + ((0x200000) / 2)), LENGTH = 0x2000
+    flash (rx) : ORIGIN = ((0x10000000) + ((0x200000) / 2)), LENGTH = 0x20000
     sflash_user_data (rx) : ORIGIN = 0x16000800, LENGTH = 0x800
     sflash_nar (rx) : ORIGIN = 0x16001A00, LENGTH = 0x200
     sflash_public_key (rx) : ORIGIN = 0x16005A00, LENGTH = 0xC00
@@ -306,7 +306,7 @@ SECTIONS
 
 
 
-__cy_memory_0_start = ((0x10005000) + ((0x200000) / 2));
+__cy_memory_0_start = ((0x10000000) + ((0x200000) / 2));
 __cy_memory_0_length = 0x00200000;
 __cy_memory_0_row_size = 0x200;
 
