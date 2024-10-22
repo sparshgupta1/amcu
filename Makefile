@@ -161,3 +161,11 @@ gentoc2:
 $(DIRS):
 	@echo "Entering $@"
 	$(Q)$(MAKE) -C $@
+
+cleanall: $(CLEAN_ALL_DIRS)
+	$(Q)-$(RM) *~
+	$(RM) $(INSTALL_DIR)
+	@echo "----| Removing $(INSTALL_DIR) dir"
+$(CLEAN_ALL_DIRS):
+	@echo "----| Cleaning up $(patsubst cleanall-%,%,$@)"
+	$(Q)$(MAKE) -C $(patsubst cleanall-%,%,$@) cleanalldir
